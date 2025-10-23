@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Routes, Route, Link, NavLink, useNavigate } from "react-router-dom";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, Routes, Route, Link, NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Car,
@@ -20,26 +21,35 @@ import {
 
 /**
  * DriveWise Fleet — Frontend v1 (React Preview)
- * Multi-page preview with Router + Tailwind + Framer Motion
+ * ------------------------------------------------------
+ * Multi-page preview in a single file (for quick iteration).
+ * Uses React Router for routing + Tailwind for styling.
+ * You can copy this into a Vite app later without big changes.
  */
 
+// ---------------------------------------------------------
+// Mock Auth
+// ---------------------------------------------------------
 function useAuth() {
   const [user, setUser] = useState(() => {
-    const raw = localStorage.getItem("dw_user");
+    const raw = typeof localStorage !== "undefined" && localStorage.getItem("dw_user");
     return raw ? JSON.parse(raw) : null;
   });
   const login = (email) => {
     const u = { id: "u_1", name: "Fleet Admin", email };
     setUser(u);
-    localStorage.setItem("dw_user", JSON.stringify(u));
+    if (typeof localStorage !== "undefined") localStorage.setItem("dw_user", JSON.stringify(u));
   };
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("dw_user");
+    if (typeof localStorage !== "undefined") localStorage.removeItem("dw_user");
   };
   return { user, login, logout };
 }
 
+// ---------------------------------------------------------
+// Layouts
+// ---------------------------------------------------------
 function AppShell({ children, onOpenAdd }) {
   return (
     <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
@@ -108,6 +118,9 @@ function TopBar({ onOpenAdd }) {
   );
 }
 
+// ---------------------------------------------------------
+// Auth Pages
+// ---------------------------------------------------------
 function AuthLayout({ children }) {
   return (
     <div className="min-h-screen grid place-items-center bg-neutral-50 dark:bg-neutral-950">
@@ -183,6 +196,9 @@ function ForgotPage() {
   );
 }
 
+// ---------------------------------------------------------
+// Data & Utilities
+// ---------------------------------------------------------
 const seedVehicles = [
   {
     id: "veh_1",
@@ -250,6 +266,9 @@ const daysUntil = (dateStr) => {
 };
 const cls = (...xs) => xs.filter(Boolean).join(" ");
 
+// ---------------------------------------------------------
+// Reusable UI
+// ---------------------------------------------------------
 function StatCard({ title, icon: Icon, value, hint }) {
   return (
     <motion.div layout className="rounded-2xl border border-neutral-200 dark:border-neutral-800 p-4 shadow-sm">
@@ -401,8 +420,11 @@ function VehicleDrawer({ open, onClose, vehicle }) {
   );
 }
 
+// ---------------------------------------------------------
+// Pages
+// ---------------------------------------------------------
 function DashboardPage({ vehicles }) {
-  const stats = React.useMemo(() => {
+  const stats = useMemo(() => {
     const now = new Date();
     const upTo = (d) => (new Date(d) - now) / (1000 * 60 * 60 * 24) <= 30;
     const mot = vehicles.filter((v) => upTo(v.mot.date)).length;
@@ -420,13 +442,13 @@ function DashboardPage({ vehicles }) {
         <StatCard title="Service ≤ 30d" icon={Wrench} value={stats.svc} hint="Prevent breakdowns" />
       </div>
       <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 p-4">
-        <div className="text-sm text-neutral-600 dark:text-neutral-400">Welcome! Use the sidebar to jump to Vehicles, Reminders, or Documents. Charts & KPIs coming soon.</div>
+        <div className="text-sm text-neutral-600 dark:text-neutral-400">Welcome! Use the sidebar to jump to Vehicles, Reminders, or Documents. This dashboard will show charts and KPIs in the next iteration.</div>
       </div>
     </div>
   );
 }
 
-function VehiclesPage({ vehicles, onOpen }) {
+function VehiclesPage({ vehicles, onOpen, onCreate }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const filtered = useMemo(() => {
@@ -453,18 +475,18 @@ function VehiclesPage({ vehicles, onOpen }) {
         </div>
       </div>
       <VehicleTable items={filtered} onOpen={onOpen} />
-      <div className="text-xs text-neutral-500">Tip: Use the Add Vehicle button (top bar) to insert a mock record.</div>
+      <div className="text-xs text-neutral-500">Tip: Use the **Add Vehicle** button (top bar) to insert a mock record.</div>
     </div>
   );
 }
 
 function RemindersPage({ vehicles }) {
   const items = useMemo(()=>{
-    return vehicles.flatMap((v)=>([
+    return vehicles.flatMap((v)=>[
       { id: `${v.id}_mot`, vehicle: v, type: "MOT", due: v.mot.date },
       { id: `${v.id}_ins`, vehicle: v, type: "Insurance", due: v.insurance.end },
       { id: `${v.id}_svc`, vehicle: v, type: "Service", due: v.nextService.date },
-    ])).sort((a,b)=> new Date(a.due) - new Date(b.due));
+    ]).sort((a,b)=> new Date(a.due) - new Date(b.due));
   },[vehicles]);
 
   return (
@@ -527,7 +549,10 @@ function AccountPage({ onLogout }) {
   );
 }
 
-export default function App() {
+// ---------------------------------------------------------
+// Root App
+// ---------------------------------------------------------
+function App() {
   const auth = useAuth();
   const [vehicles, setVehicles] = useState(seedVehicles);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -536,11 +561,13 @@ export default function App() {
 
   if (!auth.user) {
     return (
-      <Routes>
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/forgot" element={<ForgotPage />} />
-        <Route path="*" element={<LoginPage onLogin={auth.login} />} />
-      </Routes>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot" element={<ForgotPage />} />
+          <Route path="*" element={<LoginPage onLogin={auth.login} />} />
+        </Routes>
+      </BrowserRouter>
     );
   }
 
@@ -568,11 +595,11 @@ export default function App() {
   }
 
   return (
-    <>
+    <BrowserRouter>
       <AppShell onOpenAdd={()=> setAdding(true)}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage vehicles={vehicles} />} />
-          <Route path="/vehicles" element={<VehiclesPage vehicles={vehicles} onOpen={openVehicle} />} />
+          <Route path="/vehicles" element={<VehiclesPage vehicles={vehicles} onOpen={openVehicle} onCreate={()=>setAdding(true)} />} />
           <Route path="/reminders" element={<RemindersPage vehicles={vehicles} />} />
           <Route path="/documents" element={<DocumentsPage vehicles={vehicles} />} />
           <Route path="/account" element={<AccountPage onLogout={auth.logout} />} />
@@ -603,6 +630,8 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </BrowserRouter>
   );
 }
+
+export default App;
