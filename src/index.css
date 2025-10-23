@@ -2,5 +2,5 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Demo tweaks */
+/* Prefer user's system theme */
 :root { color-scheme: light dark; }
